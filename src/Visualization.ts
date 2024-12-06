@@ -1,5 +1,5 @@
 import { LitElement, html, css } from 'lit';
-import {customElement} from 'lit/decorators.js';
+import { customElement } from 'lit/decorators.js';
 
 @customElement('visualization-component')
 export class VisualizationComponent extends LitElement {
@@ -13,8 +13,6 @@ export class VisualizationComponent extends LitElement {
   `;
 
   render() {
-    return html`
-      <div>Visualization</div>
-    `;
+    return html` <div>Visualization</div> `;
   }
 }

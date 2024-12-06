@@ -16,8 +16,6 @@ export class ConsoleComponent extends LitElement {
   `;
 
   render() {
-    return html`
-      <div>Console Output</div>
-    `;
+    return html` <div>Console Output</div> `;
   }
 }

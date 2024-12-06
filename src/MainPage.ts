@@ -1,6 +1,10 @@
 import { LitElement, html, css, } from 'lit';
 import {customElement} from 'lit/decorators.js';
 
+import './Simulation';
+import './Visualization';
+import './Console';
+
 @customElement('main-page')
 export class MainPage extends LitElement {
   static styles = css`
@@ -36,9 +40,10 @@ export class MainPage extends LitElement {
   `;
 
   render() {
+    const lightStatus = ['green', 'red', 'yellow', 'green', 'red', 'yellow', 'green', 'red']
     return html`
       <div class="view">
-        <simulation-component class="simulation"></simulation-component>
+        <simulation-component class="simulation" .lightStatus=${lightStatus}></simulation-component>
         <visualization-component class="visualization"></visualization-component>
       </div>
       <console-component class="console"></console-component>

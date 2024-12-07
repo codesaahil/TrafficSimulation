@@ -1,6 +1,7 @@
 class TrafficLightAgent {
   x: number;
   y: number;
+  id: number;
   state: string;
 
   redImg: HTMLImageElement;
@@ -10,6 +11,7 @@ class TrafficLightAgent {
   constructor(
     x: number,
     y: number,
+    id: number,
     state: string,
     redImg: HTMLImageElement,
     yellowImg: HTMLImageElement,
@@ -17,6 +19,7 @@ class TrafficLightAgent {
   ) {
     this.x = x;
     this.y = y;
+    this.id = id;
     this.state = state;
     this.redImg = redImg;
     this.yellowImg = yellowImg;

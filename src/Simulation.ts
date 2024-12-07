@@ -1,14 +1,16 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement } from 'lit/decorators.js';
+import TrafficLightAgent from './agents/TrafficLightAgent';
+import Car from './agents/Car';
 
 @customElement('simulation-component')
 export class SimulationComponent extends LitElement {
-  static styles = css`
+  static readonly styles = css`
     :host {
       display: flex;
     }
 
-    .canvas {
+    .this.canvas {
       width: 100%;
       height: 100%;
       border: 1px solid #ccc;
@@ -16,10 +18,23 @@ export class SimulationComponent extends LitElement {
     }
   `;
 
-  @property({ type: Array<string> }) lightStatus: Array<string> = [];
+  private animationFrameId: number | null = null;
+  private isRunning: boolean = false;
+  private timeStep: number = 0;
+
+  private canvas: HTMLCanvasElement;
+  private readonly ctx: CanvasRenderingContext2D;
+  private readonly roadImg: HTMLImageElement = new Image();
+  private readonly redImg: HTMLImageElement = new Image();
+  private readonly greenImg: HTMLImageElement = new Image();
+  private readonly yellowImg: HTMLImageElement = new Image();
+  private readonly carImg: HTMLImageElement = new Image();
+
+  private trafficLightAgents: Array<TrafficLightAgent> = [];
+  private cars: Array<Car> = [];
 
   render() {
-    return html` <canvas id="roadCanvas" class="canvas"></canvas> `;
+    return html` <canvas id="roadCanvas" class="canvas"></canvas>`;
   }
 
   firstUpdated() {
@@ -27,71 +42,79 @@ export class SimulationComponent extends LitElement {
   }
 
   private initializeCanvas(): void {
-    const canvas =
+    this.canvas =
       this.shadowRoot?.querySelector<HTMLCanvasElement>('#roadCanvas');
-    if (!canvas) {
-      console.error('Canvas element not found.');
+    if (!this.canvas) {
+      console.error('this.canvas element not found.');
       return;
     }
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      console.error('Failed to get canvas context.');
+    this.ctx = this.canvas.getContext('2d');
+    if (!this.ctx) {
+      console.error('Failed to get this.canvas context.');
       return;
     }
 
+    this.synchronizeCanvas();
+
+    this.canvas.addEventListener('click', (event) => {
+      const rect = this.canvas.getBoundingClientRect(); // Get canvas position relative to the viewport
+      const x = event.clientX - rect.left; // X relative to the canvas
+      const y = event.clientY - rect.top; // Y relative to the canvas
+
+      console.log(`Clicked at X: ${x}, Y: ${y}`);
+
+      // Check if the click is within the image's bounds (100, 100, 200, 150)
+      if (x >= 100 && x <= 300 && y >= 100 && y <= 250) {
+        console.log('You clicked inside the image area!');
+      }
+    });
+
     // Load the road image
-    const imagePath = 'src/assets/Road/intersection.jpg';
-    const roadImg = new Image();
-    roadImg.src = imagePath;
+    const imagePath = 'src/assets/Road/intersection.jpeg';
+    this.roadImg.src = imagePath;
 
     // Load the green optimized image
     const greenImagePath = 'src/assets/TrafficLight/green.png';
-    const greenImg = new Image();
-    greenImg.src = greenImagePath;
+    this.greenImg.src = greenImagePath;
 
     // Load the green optimized image
     const redImagePath = 'src/assets/TrafficLight/red.png';
-    const redImg = new Image();
-    redImg.src = redImagePath;
+    this.redImg.src = redImagePath;
 
     // Load the green optimized image
     const yellowImagePath = 'src/assets/TrafficLight/yellow.png';
-    const yellowImg = new Image();
-    yellowImg.src = yellowImagePath;
+    this.yellowImg.src = yellowImagePath;
+
+    // Load the car optimized image
+    const carImagePath = 'src/assets/Car/compact_red.png';
+    this.carImg.src = carImagePath;
 
     // Wait for both images to load
     let imagesLoaded = 0;
     const onImageLoad = () => {
       imagesLoaded++;
-      if (imagesLoaded === 4) {
-        // Draw the background and the green image once both are loaded
-        this.drawBackground(ctx, canvas, roadImg);
-        this.drawTrafficLights(
-          ctx,
-          greenImg,
-          redImg,
-          yellowImg,
-          this.lightStatus
-        );
+      if (imagesLoaded === 5) {
+        this.startGameLoop();
       }
     };
 
-    roadImg.onload = onImageLoad;
-    greenImg.onload = onImageLoad;
-    redImg.onload = onImageLoad;
-    yellowImg.onload = onImageLoad;
+    this.roadImg.onload = onImageLoad;
+    this.greenImg.onload = onImageLoad;
+    this.redImg.onload = onImageLoad;
+    this.yellowImg.onload = onImageLoad;
+    this.carImg.onload = onImageLoad;
 
     // Handle errors loading images
-    roadImg.onerror = () => {
+    this.roadImg.onerror = () => {
       console.error('Failed to load the road image at path:', imagePath);
     };
-    greenImg.onerror = () => {
+    this.greenImg.onerror = () => {
       console.error('Failed to load the green image at path:', greenImagePath);
     };
-    redImg.onerror = () => {
+    this.redImg.onerror = () => {
       console.error('Failed to load the red image at path:', redImagePath);
     };
-    yellowImg.onerror = () => {
+    this.yellowImg.onerror = () => {
       console.error(
         'Failed to load the yellow image at path:',
         yellowImagePath
@@ -99,50 +122,83 @@ export class SimulationComponent extends LitElement {
     };
   }
 
-  private drawBackground(
-    ctx: CanvasRenderingContext2D,
-    canvas: HTMLCanvasElement,
-    roadImg: HTMLImageElement
-  ): void {
-    const imgWidth = roadImg.width;
-    const imgHeight = roadImg.height;
+  private synchronizeCanvas(): void {
+    // Get the CSS size of the this.canvas
+    const styleWidth = this.canvas.clientWidth; // CSS width
+    const styleHeight = this.canvas.clientHeight; // CSS height
 
-    // Ensure the canvas dimensions are appropriate for the image tiling
-    const canvasHeight = canvas.height;
+    // Set the resolution of the this.canvas to match the CSS size
+    this.canvas.width = styleWidth;
+    this.canvas.height = styleHeight;
 
-    // Draw the road image at the top, 4 times
+    console.log(this.canvas.width, this.canvas.height);
+  }
+
+  private drawBackground(): void {
+    const imgWidth = this.roadImg.width; // 2000
+    const imgHeight = this.roadImg.height; // 2008
+    const targetWidth = 341; // Desired width
+    const targetHeight = 341; // Desired height
+
+    // Ensure the this.canvas dimensions are appropriate for the image tiling
+    const canvasHeight = this.canvas.height;
+
+    // Scale and draw the road image at the top, 4 times
     for (let i = 0; i < 4; i++) {
-      ctx.drawImage(roadImg, i * imgWidth, 0, imgWidth, imgHeight);
+      this.ctx.drawImage(
+        this.roadImg, // Source image
+        0,
+        0,
+        imgWidth,
+        imgHeight, // Source coordinates and dimensions
+        i * targetWidth,
+        0,
+        targetWidth,
+        targetHeight // Target coordinates and dimensions
+      );
     }
 
-    // Draw the road image at the bottom, 4 times
+    // Scale and draw the road image at the bottom, 4 times
     for (let i = 0; i < 4; i++) {
-      ctx.drawImage(
-        roadImg,
-        i * imgWidth,
-        canvasHeight - imgHeight,
+      this.ctx.drawImage(
+        this.roadImg, // Source image
+        0,
+        0,
         imgWidth,
-        imgHeight
+        imgHeight, // Source coordinates and dimensions
+        i * targetWidth,
+        canvasHeight - targetHeight,
+        targetWidth,
+        targetHeight // Target coordinates and dimensions
       );
     }
   }
 
-  private drawTrafficLights(
-    ctx: CanvasRenderingContext2D,
-    greenImg: HTMLImageElement,
-    redImg: HTMLImageElement,
-    yellowImg: HTMLImageElement,
-    lightStatus: Array<string>
-  ): void {
+  private drawTrafficLights(): void {
+    this.trafficLightAgents = [];
     const points = [
-      { x: 10, y: 5 },
-      { x: 85, y: 5 },
-      { x: 160, y: 5 },
-      { x: 235, y: 5 },
-      { x: 10, y: 80 },
-      { x: 85, y: 80 },
-      { x: 160, y: 80 },
-      { x: 235, y: 80 },
+      { x: 70, y: 20 },
+      { x: 410, y: 20 },
+      { x: 750, y: 20 },
+      { x: 1090, y: 20 },
+      { x: 70, y: 360 },
+      { x: 410, y: 360 },
+      { x: 750, y: 360 },
+      { x: 1090, y: 360 },
+    ];
+
+    const targetWidth = 50;
+    const targetHeight = 100;
+
+    const lightStatus = [
+      'green',
+      'red',
+      'yellow',
+      'green',
+      'red',
+      'yellow',
+      'green',
+      'red',
     ];
 
     // Loop through points and draw the corresponding light image
@@ -150,19 +206,143 @@ export class SimulationComponent extends LitElement {
       const point = points[i];
       const status = lightStatus[i];
 
-      switch (status) {
-        case 'red':
-          ctx.drawImage(redImg, point.x, point.y);
-          break;
-        case 'green':
-          ctx.drawImage(greenImg, point.x, point.y);
-          break;
-        case 'yellow':
-          ctx.drawImage(yellowImg, point.x, point.y);
-          break;
-        default:
-          console.error(`Invalid light status: ${status}`);
-      }
+      const trafficLightAgent = new TrafficLightAgent(
+        point.x,
+        point.y,
+        status,
+        this.redImg,
+        this.yellowImg,
+        this.greenImg
+      );
+
+      this.trafficLightAgents.push(trafficLightAgent);
     }
+
+    this.trafficLightAgents.forEach((agent: TrafficLightAgent) =>
+      agent.draw(this.ctx, targetWidth, targetHeight)
+    );
+  }
+
+  private spawnCarRandomly(): void {
+    const rightPoints = [
+      { x: 0, y: 153 },
+      { x: 0, y: 493 },
+    ];
+
+    const leftPoints = [
+      { x: this.canvas.width, y: 188 },
+      { x: this.canvas.width, y: 527 },
+    ];
+
+    const upPoints = [
+      { x: 153, y: this.canvas.height },
+      { x: 493, y: this.canvas.height },
+      { x: 835, y: this.canvas.height },
+      { x: 1177, y: this.canvas.height },
+    ];
+
+    const downPoints = [
+      { x: 190, y: 0 },
+      { x: 530, y: 0 },
+      { x: 872, y: 0 },
+      { x: 1212, y: 0 },
+    ];
+
+    // Randomly decide spawn side
+    const spawnSides = ['right', 'left', 'up', 'down'];
+    const spawnSide = spawnSides[Math.floor(Math.random() * spawnSides.length)];
+
+    let spawnPoints;
+    let direction;
+
+    switch (spawnSide) {
+      case 'right':
+        spawnPoints = rightPoints;
+        direction = 'right';
+        break;
+      case 'left':
+        spawnPoints = leftPoints;
+        direction = 'left';
+        break;
+      case 'up':
+        spawnPoints = upPoints;
+        direction = 'up';
+        break;
+      case 'down':
+        spawnPoints = downPoints;
+        direction = 'down';
+        break;
+      default:
+        throw new Error('Invalid spawn side'); // To satisfy TypeScript strict mode
+    }
+
+    const spawnPoint =
+      spawnPoints[Math.floor(Math.random() * spawnPoints.length)]; // Randomly pick a spawn point
+
+    const car = new Car(spawnPoint.x, spawnPoint.y, 3, direction, this.carImg);
+
+    this.cars.push(car);
+  }
+
+  private moveCars(): void {
+    this.cars = this.cars.filter((car) => {
+      if (
+        car.x + this.carImg.width < 0 ||
+        car.x - this.carImg.width > this.canvas.width
+      ) {
+        return false;
+      }
+      if (
+        car.y + this.carImg.height < 0 ||
+        car.y - this.carImg.width > this.canvas.height
+      ) {
+        return false;
+      }
+      return true;
+    });
+    this.cars.forEach((car) => {
+      car.move();
+      car.draw(this.ctx);
+    });
+  }
+
+  private startGameLoop(): void {
+    if (this.isRunning) {
+      return;
+    }
+    this.isRunning = true;
+    const update = () => {
+      if (this.isRunning) {
+        this.timeStep++;
+        if (this.timeStep % 50 === 0) {
+          this.spawnCarRandomly();
+        }
+        this.draw();
+        this.animationFrameId = requestAnimationFrame(update);
+      }
+    };
+    update();
+  }
+
+  private stopGameLoop(): void {
+    this.isRunning = false;
+
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.stopGameLoop(); // Stop when component is removed
+  }
+
+  private draw(): void {
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    this.drawBackground();
+    this.drawTrafficLights();
+    this.moveCars();
   }
 }

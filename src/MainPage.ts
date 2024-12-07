@@ -40,22 +40,9 @@ export class MainPage extends LitElement {
   `;
 
   render() {
-    const lightStatus = [
-      'green',
-      'red',
-      'yellow',
-      'green',
-      'red',
-      'yellow',
-      'green',
-      'red',
-    ];
     return html`
       <div class="view">
-        <simulation-component
-          class="simulation"
-          .lightStatus=${lightStatus}
-        ></simulation-component>
+        <simulation-component class="simulation"></simulation-component>
         <visualization-component
           class="visualization"
         ></visualization-component>

@@ -10,7 +10,9 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "lit": "^3.2.1"
+    "fuzzylogic-js": "^1.1.1",
+    "lit": "^3.2.1",
+    "pso": "^1.0.0"
   },
   "devDependencies": {
     "globals": "^15.13.0",

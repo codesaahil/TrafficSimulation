@@ -3,6 +3,11 @@ import { customElement } from 'lit/decorators.js';
 import TrafficLightAgent from './agents/TrafficLightAgent';
 import Car from './agents/Car';
 
+type Point = {
+  x: number;
+  y: number;
+};
+
 @customElement('simulation-component')
 export class SimulationComponent extends LitElement {
   static readonly styles = css`
@@ -11,8 +16,6 @@ export class SimulationComponent extends LitElement {
     }
 
     .this.canvas {
-      width: 100%;
-      height: 100%;
       border: 1px solid #ccc;
       background: #f0f0f0;
     }
@@ -137,68 +140,31 @@ export class SimulationComponent extends LitElement {
   private drawBackground(): void {
     const imgWidth = this.roadImg.width; // 2000
     const imgHeight = this.roadImg.height; // 2008
-    const targetWidth = 341; // Desired width
-    const targetHeight = 341; // Desired height
-
-    // Ensure the this.canvas dimensions are appropriate for the image tiling
-    const canvasHeight = this.canvas.height;
-
-    // Scale and draw the road image at the top, 4 times
-    for (let i = 0; i < 4; i++) {
-      this.ctx.drawImage(
-        this.roadImg, // Source image
-        0,
-        0,
-        imgWidth,
-        imgHeight, // Source coordinates and dimensions
-        i * targetWidth,
-        0,
-        targetWidth,
-        targetHeight // Target coordinates and dimensions
-      );
-    }
-
-    // Scale and draw the road image at the bottom, 4 times
-    for (let i = 0; i < 4; i++) {
-      this.ctx.drawImage(
-        this.roadImg, // Source image
-        0,
-        0,
-        imgWidth,
-        imgHeight, // Source coordinates and dimensions
-        i * targetWidth,
-        canvasHeight - targetHeight,
-        targetWidth,
-        targetHeight // Target coordinates and dimensions
-      );
-    }
+    this.ctx.drawImage(
+      this.roadImg, // Source image
+      0,
+      0,
+      imgWidth,
+      imgHeight,
+      0,
+      0,
+      this.canvas.width,
+      this.canvas.height
+    );
   }
 
   private drawTrafficLights(): void {
-    const points = [
-      { x: 70, y: 20 },
-      { x: 410, y: 20 },
-      { x: 750, y: 20 },
-      { x: 1090, y: 20 },
-      { x: 70, y: 360 },
-      { x: 410, y: 360 },
-      { x: 750, y: 360 },
-      { x: 1090, y: 360 },
+    const points: Array<Point> = [
+      { x: 445, y: 145 },
+      { x: 875, y: 145 },
+      { x: 445, y: 445 },
+      { x: 875, y: 445 },
     ];
 
     const targetWidth = 50;
     const targetHeight = 100;
 
-    const lightStatus = [
-      'green',
-      'red',
-      'yellow',
-      'green',
-      'red',
-      'yellow',
-      'green',
-      'red',
-    ];
+    const lightStatus = ['green', 'green', 'green', 'green'];
 
     this.trafficLightAgents = points.map((point, i) => {
       return new TrafficLightAgent(
@@ -218,70 +184,65 @@ export class SimulationComponent extends LitElement {
   }
 
   private spawnCarRandomly(): void {
-    const rightPoints = [
-      { x: 0, y: 153, road: '1' },
-      { x: 0, y: 493, road: '2' },
-    ];
+    const rightPoint = { x: 0, y: 300 };
+    const leftPoint = { x: 1360, y: 375 };
+    const upPoint = { x: 610, y: 680 };
+    const downPoint = { x: 760, y: 0 };
 
-    const leftPoints = [
-      { x: this.canvas.width, y: 188, road: '1' },
-      { x: this.canvas.width, y: 527, road: '2' },
-    ];
-
-    const upPoints = [
-      { x: 153, y: this.canvas.height, road: '1' },
-      { x: 493, y: this.canvas.height, road: '2' },
-      { x: 835, y: this.canvas.height, road: '3' },
-      { x: 1177, y: this.canvas.height, road: '4' },
-    ];
-
-    const downPoints = [
-      { x: 190, y: 0, road: '1' },
-      { x: 530, y: 0, road: '2' },
-      { x: 872, y: 0, road: '3' },
-      { x: 1212, y: 0, road: '4' },
-    ];
-
-    // Randomly decide spawn side
     const spawnSides = ['right', 'left', 'up', 'down'];
     const spawnSide = spawnSides[Math.floor(Math.random() * spawnSides.length)];
 
-    let spawnPoints;
+    let spawnPoint;
     let direction;
 
     switch (spawnSide) {
       case 'right':
-        spawnPoints = rightPoints;
+        spawnPoint = rightPoint;
         direction = 'right';
         break;
       case 'left':
-        spawnPoints = leftPoints;
+        spawnPoint = leftPoint;
         direction = 'left';
         break;
       case 'up':
-        spawnPoints = upPoints;
+        spawnPoint = upPoint;
         direction = 'up';
         break;
       case 'down':
-        spawnPoints = downPoints;
+        spawnPoint = downPoint;
         direction = 'down';
         break;
       default:
         throw new Error('Invalid spawn side'); // To satisfy TypeScript strict mode
     }
 
-    const spawnPoint =
-      spawnPoints[Math.floor(Math.random() * spawnPoints.length)]; // Randomly pick a spawn point
+    if (this.checkCarAtSpawnPoint(spawnPoint)) {
+      return;
+    }
 
-    const car = new Car(
-      spawnPoint.x,
-      spawnPoint.y,
-      direction,
-      spawnPoint.road,
-      this.carImg
-    );
+    const car = new Car(spawnPoint.x, spawnPoint.y, direction, this.carImg);
 
     this.cars.push(car);
+  }
+
+  private checkCarAtSpawnPoint(spawnPoint: Point): boolean {
+    for (const car of this.cars) {
+      switch (car.direction) {
+        case 'left':
+        case 'right':
+          if (spawnPoint.x - 70 <= car.x && car.x <= spawnPoint.x + 70) {
+            return true;
+          }
+          break;
+        case 'up':
+        case 'down':
+          if (spawnPoint.y - 70 <= car.y && car.y <= spawnPoint.y + 70) {
+            return true;
+          }
+          break;
+      }
+    }
+    return false;
   }
 
   private moveCars(): void {
@@ -301,7 +262,7 @@ export class SimulationComponent extends LitElement {
       return true;
     });
     this.cars.forEach((car) => {
-      car.move(this.trafficLightAgents);
+      car.move(this.trafficLightAgents, this.cars);
       car.draw(this.ctx);
     });
   }

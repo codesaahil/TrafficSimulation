@@ -18,15 +18,16 @@ export class MainPage extends LitElement {
     .view {
       flex: 7;
       display: flex;
+      width: 100%;
     }
 
     .simulation {
-      flex: 7;
+      flex: 5;
       border: 1px solid #ccc;
     }
 
     .visualization {
-      flex: 3;
+      flex: 5;
       border: 1px solid #ccc;
       padding: 0.5rem;
     }
